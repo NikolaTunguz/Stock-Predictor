@@ -1,0 +1,5 @@
+The data in the data folder is too large to be uploaded onto github.
+If future files are added, include them onto the .gitignore file.
+
+To access the dataset, go to the following link:
+https://www.kaggle.com/datasets/kalilurrahman/nvidia-stock-data-latest-and-updated
