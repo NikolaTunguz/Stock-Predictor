@@ -18,7 +18,4 @@ class DataPreprocessing():
         self.data["tomorrow_low"] = self.data["Low"].shift(-1)
         self.data["tomorrow_close"] = self.data["Close"].shift(-1)
         
-        #drop rows with a null value in any column.
-        self.data = self.data.dropna()
-
         return self.data

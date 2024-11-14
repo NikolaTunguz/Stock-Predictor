@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 #data imports
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_percentage_error
 import data 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,6 +17,8 @@ class NeuralNetwork(nn.Module):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.epoch_train_loss = []
         self.epoch_val_loss = []
+        self.epoch_val_predictions = []
+        self.epoch_val_actual = []
         self.num_epochs = None
 
         hidden_size1 = 256
@@ -47,6 +50,11 @@ class NeuralNetwork(nn.Module):
         data_processing = data.DataPreprocessing(file)
         dataset = data_processing.preprocessing()
 
+        #drop last row for training
+        self.most_recent_day = dataset[["Open", "High", "Low", "Close"]].tail(1).values
+        self.most_recent_day = torch.tensor(self.most_recent_day, dtype=torch.float32)
+        dataset.drop(dataset.tail(1).index, inplace=True)
+
         #define features and targets
         features = dataset[["Open", "High", "Low", "Close"]].values #values on a day
         targets = dataset[["tomorrow_open", "tomorrow_high", "tomorrow_low", "tomorrow_close"]].values #"next day" values
@@ -74,6 +82,9 @@ class NeuralNetwork(nn.Module):
             self.train()
             batch_train_loss = []
             batch_val_loss = []
+            #MAPE
+            batch_val_predictions = []
+            batch_val_actual = []
 
             #training
             for(features, targets) in self.train_loader:
@@ -100,12 +111,23 @@ class NeuralNetwork(nn.Module):
                     loss = criterion(predictions, targets)
                     batch_val_loss.append(loss.item())
 
-            #epoch validation loss
-            val_loss = sum(batch_val_loss) / len(batch_val_loss)
-            self.epoch_val_loss.append(val_loss)
+                    batch_val_predictions.append(predictions.cpu().numpy())
+                    batch_val_actual.append(targets.cpu().numpy())        
 
-            print(f"Epoch: {epoch+1} train loss: {self.epoch_train_loss[epoch]:.4f} val loss: {self.epoch_val_loss[epoch]:.4f}")
-    
+                #flatten batch for input to mape function
+                self.epoch_val_predictions = np.concatenate(batch_val_predictions, axis=0)
+                self.epoch_val_actual = np.concatenate(batch_val_actual, axis=0) 
+
+                # Calculate MAPE on the validation data
+                val_mape = mean_absolute_percentage_error(self.epoch_val_actual, self.epoch_val_predictions)
+
+                #epoch validation loss
+                val_loss = sum(batch_val_loss) / len(batch_val_loss)
+                self.epoch_val_loss.append(val_loss)
+
+            print(f"Epoch: {epoch+1} train loss: {self.epoch_train_loss[epoch]:.4f} val loss: {self.epoch_val_loss[epoch]:.4f} val MAPE: {val_mape:.4f}")
+  
+
     #graph training and validation loss
     def graph(self):
         plt.figure(figsize=(12, 6))
@@ -119,13 +141,13 @@ class NeuralNetwork(nn.Module):
         plt.show()
 
     #next day prediction
-    def predict(self, most_recent_day):
+    def predict(self):
         self.eval()
         with torch.no_grad():
-            most_recent_day = most_recent_day.to(self.device)
-            
+            self.most_recent_day = self.most_recent_day.to(self.device)
+
             #forward pass on the most recent day
-            prediction = self(most_recent_day)
+            prediction = self(self.most_recent_day)
             return prediction.cpu().numpy().flatten()
         
 def main():
@@ -148,8 +170,7 @@ def main():
     model.graph()
 
     #prediction based on last day
-    most_recent_day = model.x_val[-1]
-    tomorrow_prices = model.predict(most_recent_day)
+    tomorrow_prices = model.predict()
     
     # Print the predicted prices
     print("Tommorow's Predicted Prices (Open  High  Low  Close):", tomorrow_prices[0], " | ", tomorrow_prices[1], " | ", tomorrow_prices[2], " | ", tomorrow_prices[3])
@@ -165,3 +186,4 @@ if __name__ == "__main__":
 
 
 
+  
