@@ -7,6 +7,7 @@ class DataPreprocessing():
 
     def read_data(self):
         self.data = pd.read_csv(self.file)
+        return self.data
 
     def preprocessing(self):
         self.data = self.data.drop(columns=["Dividends", "Stock Splits"])
@@ -23,4 +24,4 @@ class DataPreprocessing():
         #drop rows with a null value in any column.
         self.data = self.data.dropna()
 
-
+        return self.data
