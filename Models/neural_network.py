@@ -6,20 +6,18 @@ import sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
-
-import pandas as pd
 import data 
 
 class NeuralNetwork(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(NeuralNetwork, self).__init__()
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.epoch_train_loss = []
         self.epoch_train_acc = []
         self.epoch_val_loss = []
         self.epoch_val_acc = []
         self.num_epochs = None
-
-
         hidden_size1 = 256
         hidden_size2 = 128
 
@@ -39,25 +37,25 @@ class NeuralNetwork(nn.Module):
         
     def prepare_data(self, file):
         #set up generic CSV
-        dataset = data.DataPreprocessing(file)
-        dataset = dataset.read_data()
-        dataset = dataset.preprocessing()
+        data_processing = data.DataPreprocessing(file)
+        dataset = data_processing.read_data()
+        dataset = data_processing.preprocessing()
 
         #define features and targets
-        features = dataset["Open", "High", "Low", "Close"]
-        targets = dataset["tommorow_open", "tommorow_high", "tommorow_low", "tommorow_close"]
+        features = dataset[["Open", "High", "Low", "Close"]]
+        targets = dataset[["tommorow_open", "tommorow_high", "tommorow_low", "tommorow_close"]]
 
         #split dataset
         self.x_train, self.y_val, self.y_train, self.y_val = train_test_split(features, targets, test_size=0.2, random_state=42)
         self.x_train = torch.tensor(self.x_train, dtype=torch.float32)
-        self.y_train = torch.tensor(self.x_train, dtype=torch.long)
+        self.y_train = torch.tensor(self.x_train, dtype=torch.float32)
         self.x_val = torch.tensor(self.x_val, dtype=torch.float32)
-        self.y_val = torch.tensor(self.y_val, dtype=torch.long)
+        self.y_val = torch.tensor(self.y_val, dtype=torch.float32)
         
         #normalize data
         normalize = StandardScaler()
         self.x_train = normalize.fit_transform(self.x_train)
-        self.x_test = normalize.transform(self.x_test)
+        self.x_val = normalize.transform(self.x_val)
 
         #place datasets in dataloader
         train_dataset = TensorDataset(self.x_train, self.y_train)
@@ -89,7 +87,7 @@ class NeuralNetwork(nn.Module):
 
                 #batch accuracy
                 _, prediction_labels = torch.max(predictions, dim=1)
-                labels = labels.cpu().numpy()
+                targets = targets.cpu().numpy()
                 prediction_labels = prediction_labels.cpu().numpy()
                 batch_train_acc.append(accuracy_score(prediction_labels, labels))
 
@@ -105,19 +103,16 @@ class NeuralNetwork(nn.Module):
                 for(features,targets) in self.val_loader:
                     features,targets = features.to(self.device), targets.to(self.device)
 
-                    predictions = self(data)
+                    predictions = self(features)
 
                     loss = criterion(predictions, targets)
                     batch_val_loss.append(loss.item())
 
-                    loss.backward()
-                    optimizer.step()
-
                     #batch accuracy
                     _, prediction_labels = torch.max(predictions, dim=1)
-                    labels = labels.cpu().numpy()
+                    targets = targets.cpu().numpy()
                     prediction_labels = prediction_labels.cpu().numpy()
-                    batch_val_acc.append(accuracy_score(prediction_labels, labels))
+                    batch_val_acc.append(accuracy_score(prediction_labels, targets))
             
             #epoch accuracy and loss
             val_acc = sum(batch_val_acc) / len(batch_val_acc)
@@ -137,9 +132,11 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     num_epochs = 5
 
-    #train model
-    model.train_model(optimizer, criterion, num_epochs)
+    file = "data.csv"
 
+    #train model
+    model.prepare_data(file)
+    model.train_model(optimizer, criterion, num_epochs)
 
 if __name__ == "__main__":
     main()
