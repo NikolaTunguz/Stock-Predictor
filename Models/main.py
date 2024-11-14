@@ -8,22 +8,22 @@ import neural_network
 def main():
     #process/update data with new columns
     file_name = "data.csv"
-    data_preprocessor = data.DataPreprocessor(file_name)
+    data_preprocessor = data.DataPreprocessing(file_name)
     dataset = data_preprocessor.preprocessing()
 
     #extracting x and y data
-    labels = dataset["tomorrow_open", "tomorrow_high", "tomorrow_low", "tomorrow_close"]
-    features = dataset.drop(columns = ["tomorrow_open", "tomorrow_high", "tomorrow_low", "tomorrow_close"])
+    labels = dataset[["tomorrow_open", "tomorrow_high", "tomorrow_low", "tomorrow_close"]]
+    features = dataset.drop(columns = ["Date", "tomorrow_open", "tomorrow_high", "tomorrow_low", "tomorrow_close"])
 
     #declare models, passing in x and y data
-    linear_regression = linear_regression.LinearRegression(features, labels)
+    linear_regression_model = linear_regression.MyLinearRegression(features, labels)
     neural_network = None
 
     #train and evaluate models 
-    linear_regression.train()
-    linear_accuracy = linear_regression.evaluate()
+    linear_regression_model.train()
+    linear_error = linear_regression_model.evaluate()
 
-    print(linear_accuracy)
+    print("Linear Test Dataset Percent Error: ", linear_error * 100)
 
 if __name__ == "__main__":
     main()

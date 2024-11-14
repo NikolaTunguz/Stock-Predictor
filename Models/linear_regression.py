@@ -2,7 +2,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_percentage_error
 
-class LinearRegression:
+class MyLinearRegression:
     def __init__(self, X, y):
         #core model variables
         self.model = LinearRegression()
@@ -33,5 +33,5 @@ class LinearRegression:
     #function to evaluate prediction performance
     def evaluate(self):
         prediction = self.predict()
-        accuracy = mean_absolute_percentage_error(self.y_test, prediction)
-        return accuracy
+        percent_error = mean_absolute_percentage_error(self.y_test, prediction)
+        return percent_error
