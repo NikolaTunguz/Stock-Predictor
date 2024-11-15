@@ -1,11 +1,20 @@
-from sklearn.linear_model import LinearRegression
+import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_percentage_error
 
-class LinearRegression:
-    def __init__(self, X, y):
+class MyXGBoost:
+    def __init__(self, X, y):  
         #core model variables
-        self.model = LinearRegression()
+        self.model = xgb.XGBRegressor( 
+            objective = 'reg:absoluteerror', #criteria 
+            n_estimators = 2500,             #number of boosting iterations
+            max_depth = 5,                   #max tree depth
+            learning_rate = 0.03,            #learning rate
+            subsample = 0.7,                 #percent sampling of data
+            colsample_bytree = 0.8,          #percent sampling of attributes
+            alpha = 0.1                      #L1 regularization, higher = more conservative model
+            )
+        
         self.X = X
         self.y = y
 
@@ -33,5 +42,5 @@ class LinearRegression:
     #function to evaluate prediction performance
     def evaluate(self):
         prediction = self.predict()
-        accuracy = mean_absolute_percentage_error(self.y_test, prediction)
-        return accuracy
+        percent_error = mean_absolute_percentage_error(self.y_test, prediction)
+        return percent_error
