@@ -20,4 +20,5 @@ class DataPreprocessing():
 
         self.data = self.data.dropna()
         
+        self.data = self.data.dropna()
         return self.data
