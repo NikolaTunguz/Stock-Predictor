@@ -6,7 +6,7 @@ import torch
 import linear_regression_class
 import xgboost_class
 import neural_network
-
+import lstm
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -25,6 +25,9 @@ def main():
 
     nn_model = neural_network.NeuralNetwork(4, 4, features, labels)
     nn_model = nn_model.to(device)
+
+    lstm_model = lstm.LSTMPredictor(4, 32, 4, features, labels)
+    lstm_model = lstm_model.to(device)
     
     #train and evaluate models 
     linear_regression_model.train()
@@ -38,6 +41,9 @@ def main():
 
     nn_model.train_model()
     nn_model.print_results()
+
+    lstm_model.train_model()
+    lstm_model.print_results()
 
 if __name__ == "__main__":
     main()
