@@ -9,10 +9,10 @@ from sklearn.metrics import mean_absolute_percentage_error
 import numpy as np
 import matplotlib.pyplot as plt
 
-class NeuralNetwork(nn.Module):
-    def __init__(self, input_dim, output_dim, features, targets):
-        super(NeuralNetwork, self).__init__()
-        #define global variables 
+class LSTMPredictor(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, features, targets):
+        super(LSTMPredictor, self).__init__()
+        #define global variables
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.epoch_train_loss = []
         self.epoch_val_loss = []
@@ -23,28 +23,17 @@ class NeuralNetwork(nn.Module):
         self.targets = targets
 
         #define model
-        hidden_size1 = 256
-        hidden_size2 = 128
-        self.fc1 = nn.Linear(input_dim, hidden_size1)
-        self.activation1 = nn.ReLU()
+        self.lstm = nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=1, batch_first=True)
+        self.dropout = nn.Dropout(0.2)
+        self.fc1 = nn.Linear(hidden_dim, output_dim)
 
-        self.fc2 = nn.Linear(hidden_size1, hidden_size2)
-        self.activation2 = nn.ReLU()
-        self.drop = nn.Dropout(0.5)
-
-        self.fc3 = nn.Linear(hidden_size2, output_dim)
-
-    
     def forward(self, x):
         #forward pass through model
-        output = self.fc1(x)
-        output = self.activation1(output)
-
-        output = self.fc2(output)
-        output = self.activation2(output)
-        output = self.drop(output)
-
-        output = self.fc3(output)
+        x = x.unsqueeze(1) #time step of 1 so need to add sequence length of 1.
+        output, _ = self.lstm(x) #output is (batch_size, seq_len, features) as a tuple.
+        output = output[:, -1, :] #get last time step in each sequence
+        output = self.dropout(output) 
+        output = self.fc1(output)
         return output
         
     def prepare_data(self):
@@ -69,8 +58,8 @@ class NeuralNetwork(nn.Module):
         self.prepare_data()
         #hyperparameters
         criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
-        num_epochs = 15
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+        num_epochs = 100
 
         self.num_epochs = num_epochs
         for epoch in range(num_epochs):
