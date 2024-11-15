@@ -5,7 +5,15 @@ from sklearn.metrics import mean_absolute_percentage_error
 class MyXGBoost:
     def __init__(self, X, y):  
         #core model variables
-        self.model = xgb.XGBRegressor( objective = 'reg:absoluteerror', n_estimators = 2500, max_depth = 5, learning_rate = 0.03)
+        self.model = xgb.XGBRegressor( 
+            objective = 'reg:absoluteerror', #criteria 
+            n_estimators = 2500,             #number of boosting iterations
+            max_depth = 5,                   #max tree depth
+            learning_rate = 0.03,            #learning rate
+            subsample = 0.7,                 #percent sampling of data
+            colsample_bytree = 0.8,          #percent sampling of attributes
+            alpha = 0.1                      #L1 regularization, higher = more conservative model
+            )
         
         self.X = X
         self.y = y
