@@ -68,6 +68,19 @@ class MySVR:
         values = [train_acc, val_acc, test_acc]
         return values
     
+    def get_split_RMSE(self):
+        prediction = self.predict(self.X_train)
+        train_acc = root_mean_squared_error(self.y_train, prediction)
+
+        prediction = self.predict(self.X_val)
+        val_acc = root_mean_squared_error(self.y_val, prediction)
+
+        prediction = self.predict(self.X_test)
+        test_acc = root_mean_squared_error(self.y_test, prediction)
+
+        values = [train_acc, val_acc, test_acc]
+        return values
+    
 
     def predict_ahead(self, days):
         current_day = self.X_test.iloc[-1].values.reshape(1, -1) 

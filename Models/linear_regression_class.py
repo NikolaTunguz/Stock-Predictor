@@ -1,7 +1,7 @@
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_percentage_error
-from sklearn.metrics import classification_report
+from sklearn.metrics import root_mean_squared_error
 import pandas as pd
 
 class MyLinearRegression:
@@ -55,6 +55,19 @@ class MyLinearRegression:
 
         prediction = self.predict(self.X_test)
         test_acc = mean_absolute_percentage_error(self.y_test, prediction)
+
+        values = [train_acc, val_acc, test_acc]
+        return values
+    
+    def get_split_RMSE(self):
+        prediction = self.predict(self.X_train)
+        train_acc = root_mean_squared_error(self.y_train, prediction)
+
+        prediction = self.predict(self.X_val)
+        val_acc = root_mean_squared_error(self.y_val, prediction)
+
+        prediction = self.predict(self.X_test)
+        test_acc = root_mean_squared_error(self.y_test, prediction)
 
         values = [train_acc, val_acc, test_acc]
         return values

@@ -10,11 +10,10 @@ class MyXGBoost:
         #model variables
         self.model = xgb.XGBRegressor( 
             objective = 'reg:absoluteerror', #criteria 
-            n_estimators = 100,              #number of boosting iterations
+            n_estimators = 300,              #number of boosting iterations
             max_depth = 4,                   #max tree depth
             learning_rate = 0.05,            #learning rate
             subsample = 0.7,                 #percent sampling of data
-            colsample_bytree = 0.8,          #percent sampling of attributes
             alpha = 0.1,                     #L1 regularization, higher = more conservative model
             eval_metric = 'rmse'
             )
@@ -81,6 +80,19 @@ class MyXGBoost:
 
         prediction = self.predict(self.X_test)
         test_acc = mean_absolute_percentage_error(self.y_test, prediction)
+
+        values = [train_acc, val_acc, test_acc]
+        return values
+    
+    def get_split_RMSE(self):
+        prediction = self.predict(self.X_train)
+        train_acc = root_mean_squared_error(self.y_train, prediction)
+
+        prediction = self.predict(self.X_val)
+        val_acc = root_mean_squared_error(self.y_val, prediction)
+
+        prediction = self.predict(self.X_test)
+        test_acc = root_mean_squared_error(self.y_test, prediction)
 
         values = [train_acc, val_acc, test_acc]
         return values
