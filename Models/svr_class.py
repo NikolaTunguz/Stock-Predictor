@@ -1,23 +1,29 @@
-from sklearn.linear_model import LinearRegression
+from sklearn.multioutput import MultiOutputRegressor
+from sklearn.svm import SVR
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_percentage_error
-from sklearn.metrics import classification_report
+from sklearn.metrics import root_mean_squared_error
+import matplotlib.pyplot as plt
 import pandas as pd
 
-class MyLinearRegression:
-    def __init__(self, X, y):
+class MySVR:
+    def __init__(self, X, y):  
         #core model variables
-        self.model = LinearRegression()
+        self.model = MultiOutputRegressor(SVR(
+            kernel = 'rbf',
+            C = 1.0,
+            epsilon = 0.1,
+            gamma = 'scale',
+            max_iter = -1
+            ))
+       
+        #data
         self.X = X
         self.y = y
 
-        #model varables for train/val/test split
+        #model varables for train/test split
         self.X_train = None
         self.y_train = None
-
-        self.X_val = None
-        self.y_val = None
-
         self.X_test = None
         self.y_test = None
 
@@ -43,9 +49,12 @@ class MyLinearRegression:
     def evaluate(self):
         prediction = self.predict(self.X_test)
         percent_error = mean_absolute_percentage_error(self.y_test, prediction)
-        #report = classification_report(self.y_test, prediction)
-        return percent_error
-    
+        root_mean_error = root_mean_squared_error(self.y_test, prediction)
+        return percent_error, root_mean_error
+
+    def plot_metrics(self):
+        pass
+        
     def get_split_MAPE(self):
         prediction = self.predict(self.X_train)
         train_acc = mean_absolute_percentage_error(self.y_train, prediction)
@@ -58,19 +67,17 @@ class MyLinearRegression:
 
         values = [train_acc, val_acc, test_acc]
         return values
+    
 
     def predict_ahead(self, days):
         current_day = self.X_test.iloc[-1].values.reshape(1, -1) 
         current_day = pd.DataFrame(current_day, columns = self.X.columns)  
 
         for i in range(days):
-            
             output = self.model.predict(current_day)
             
             predicted_values = output[0]  
             
             print(f"{i + 1} Day Prediction: Open = {predicted_values[0]}, High = {predicted_values[1]}, Low = {predicted_values[2]}, Close = {predicted_values[3]}")
 
-            current_day = pd.DataFrame([predicted_values], columns=self.X.columns)  
-        
-            
+            current_day = pd.DataFrame([predicted_values], columns = self.X.columns)  

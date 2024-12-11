@@ -7,6 +7,9 @@ import linear_regression_class
 import xgboost_class
 import neural_network
 import lstm
+import svr_class
+
+import matplotlib.pyplot as plt
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -20,30 +23,56 @@ def main():
     labels = dataset[["tomorrow_open", "tomorrow_high", "tomorrow_low", "tomorrow_close"]]
 
     #declare models, passing in x and y data
-    linear_regression_model = linear_regression_class.MyLinearRegression(features, labels)
-    xgboost_model = xgboost_class.MyXGBoost(features, labels)
+    #linear_regression_model = linear_regression_class.MyLinearRegression(features, labels)
+    #xgboost_model = xgboost_class.MyXGBoost(features, labels)
+    svr_model = svr_class.MySVR(features, labels)
 
-    nn_model = neural_network.NeuralNetwork(4, 4, features, labels)
-    nn_model = nn_model.to(device)
+    #nn_model = neural_network.NeuralNetwork(4, 4, features, labels)
+    #nn_model = nn_model.to(device)
 
-    lstm_model = lstm.LSTMPredictor(4, 32, 4, features, labels)
-    lstm_model = lstm_model.to(device)
+    #lstm_model = lstm.LSTMPredictor(4, 32, 4, features, labels)
+    #lstm_model = lstm_model.to(device)
     
     #train and evaluate models 
-    linear_regression_model.train()
-    linear_error = linear_regression_model.evaluate()
+    #linear_regression_model.train()
+    #linear_error = linear_regression_model.evaluate()
+    #linear_values = linear_regression_model.get_split_MAPE()
 
-    xgboost_model.train()
-    xgboost_error = xgboost_model.evaluate()
+    #xgboost_model.train()
+    #xgboost_error, xgboost_rmse = xgboost_model.evaluate()
+    #xgboost_values = xgboost_model.get_split_MAPE()
 
-    print("Linear Test Dataset Percent Error: ", linear_error * 100)
-    print("XGBoost Test Dataset Percent Error: ", xgboost_error * 100)
+    svr_model.train()
+    svr_error, svr_rmse = svr_model.evaluate()
+    svr_values = svr_model.get_split_MAPE()
 
-    nn_model.train_model()
-    nn_model.print_results()
 
-    lstm_model.train_model()
-    lstm_model.print_results()
+    #print("Linear Test Dataset Percent Error: ", linear_error * 100)
+    #print("XGBoost Test Dataset Percent Error: ", xgboost_error * 100)
+    #print("XGBoost Root Mean Squared Error: ", xgboost_rmse )
+    print("SVR Test Dataset Percent Error: ", svr_error * 100)
+    print("SVR Root Mean Squared Error: ", svr_rmse )
+
+    #nn_model.train_model()
+    #nn_model.print_results()
+
+    #lstm_model.train_model()
+    #lstm_model.print_results()
+
+
+    #plotting error of each model
+    for i in range(3):
+        #print(linear_values[i])
+        #print(xgboost_values[i])
+        print(svr_values[i])
+        pass
+
+    #linear_regression_model.predict_ahead(5)
+    #print()
+    #xgboost_model.predict_ahead(5)
+    svr_model.predict_ahead(5)
+
+    #xgboost_model.plot_metrics()
 
 if __name__ == "__main__":
     main()
