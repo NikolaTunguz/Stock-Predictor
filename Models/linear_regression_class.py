@@ -43,8 +43,8 @@ class MyLinearRegression:
     def evaluate(self):
         prediction = self.predict(self.X_test)
         percent_error = mean_absolute_percentage_error(self.y_test, prediction)
-        #report = classification_report(self.y_test, prediction)
-        return percent_error
+        root_mean_error = root_mean_squared_error(self.y_test, prediction)
+        return percent_error, root_mean_error
     
     def get_split_MAPE(self):
         prediction = self.predict(self.X_train)
