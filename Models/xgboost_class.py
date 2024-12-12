@@ -10,11 +10,10 @@ class MyXGBoost:
         #model variables
         self.model = xgb.XGBRegressor( 
             objective = 'reg:absoluteerror', #criteria 
-            n_estimators = 100,              #number of boosting iterations
+            n_estimators = 300,              #number of boosting iterations
             max_depth = 4,                   #max tree depth
             learning_rate = 0.05,            #learning rate
             subsample = 0.7,                 #percent sampling of data
-            colsample_bytree = 0.8,          #percent sampling of attributes
             alpha = 0.1,                     #L1 regularization, higher = more conservative model
             eval_metric = 'rmse'
             )
@@ -85,8 +84,22 @@ class MyXGBoost:
         values = [train_acc, val_acc, test_acc]
         return values
     
+    def get_split_RMSE(self):
+        prediction = self.predict(self.X_train)
+        train_acc = root_mean_squared_error(self.y_train, prediction)
+
+        prediction = self.predict(self.X_val)
+        val_acc = root_mean_squared_error(self.y_val, prediction)
+
+        prediction = self.predict(self.X_test)
+        test_acc = root_mean_squared_error(self.y_test, prediction)
+
+        values = [train_acc, val_acc, test_acc]
+        return values
+    
 
     def predict_ahead(self, days):
+        predictions = []
         current_day = self.X_test.iloc[-1].values.reshape(1, -1) 
         current_day = pd.DataFrame(current_day, columns = self.X.columns)  
 
@@ -96,6 +109,9 @@ class MyXGBoost:
             
             predicted_values = output[0]  
             
-            print(f"{i + 1} Day Prediction: Open = {predicted_values[0]}, High = {predicted_values[1]}, Low = {predicted_values[2]}, Close = {predicted_values[3]}")
+            predictions.append(f"{i + 1} Day Prediction: Open = {predicted_values[0]}, High = {predicted_values[1]}, Low = {predicted_values[2]}, Close = {predicted_values[3]}")
 
-            current_day = pd.DataFrame([predicted_values], columns = self.X.columns)  
+            current_day = pd.DataFrame([predicted_values], columns=self.X.columns)  
+        
+        output = "\n".join(predictions)
+        return output
