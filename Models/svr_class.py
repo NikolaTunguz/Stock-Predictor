@@ -83,14 +83,19 @@ class MySVR:
     
 
     def predict_ahead(self, days):
+        predictions = []
         current_day = self.X_test.iloc[-1].values.reshape(1, -1) 
         current_day = pd.DataFrame(current_day, columns = self.X.columns)  
 
         for i in range(days):
+            
             output = self.model.predict(current_day)
             
             predicted_values = output[0]  
             
-            print(f"{i + 1} Day Prediction: Open = {predicted_values[0]}, High = {predicted_values[1]}, Low = {predicted_values[2]}, Close = {predicted_values[3]}")
+            predictions.append(f"{i + 1} Day Prediction: Open = {predicted_values[0]}, High = {predicted_values[1]}, Low = {predicted_values[2]}, Close = {predicted_values[3]}")
 
-            current_day = pd.DataFrame([predicted_values], columns = self.X.columns)  
+            current_day = pd.DataFrame([predicted_values], columns=self.X.columns)  
+        
+        output = "\n".join(predictions)
+        return output
