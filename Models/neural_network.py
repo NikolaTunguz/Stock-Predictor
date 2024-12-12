@@ -18,6 +18,14 @@ class NeuralNetwork(nn.Module):
         self.epoch_val_loss = []
         self.epoch_val_predictions = []
         self.epoch_val_actual = []
+
+        self.epoch_train_predictions = []
+        self.epoch_train_actual = []
+        self.epoch_train_mape = []
+        self.epoch_val_mape = []
+        self.epoch_train_rmse = []
+        self.epoch_val_rmse = []
+
         self.num_epochs = None
         self.features = features
         self.targets = targets
@@ -75,17 +83,19 @@ class NeuralNetwork(nn.Module):
         self.prepare_data()
         #hyperparameters
         criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
-        num_epochs = 20
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+        num_epochs = 100
 
         self.num_epochs = num_epochs
         for epoch in range(num_epochs):
             self.train()
             batch_train_loss = []
             batch_val_loss = []
-            #MAPE
+            #MAPE & RMSE
             batch_val_predictions = []
             batch_val_actual = []
+            batch_train_predictions = []
+            batch_train_actual = []
 
             #training
             for(features, targets) in self.train_loader:
@@ -98,9 +108,20 @@ class NeuralNetwork(nn.Module):
                 loss.backward()
                 optimizer.step()
 
+                batch_train_predictions.append(predictions.detach().cpu().numpy())
+                batch_train_actual.append(targets.detach().cpu().numpy())
+
             #epoch training loss
             train_loss = sum(batch_train_loss) / len(batch_train_loss)
             self.epoch_train_loss.append(train_loss)
+
+            #flatten batch for input to MAPE & RMSE function
+            self.epoch_train_predictions = np.concatenate(batch_train_predictions, axis=0)
+            self.epoch_train_actual = np.concatenate(batch_train_actual, axis=0)
+
+            #calculate MAPE & RMSE on the training data
+            self.epoch_train_mape.append(mean_absolute_percentage_error(self.epoch_train_actual, self.epoch_train_predictions))
+            self.epoch_train_rmse.append(root_mean_squared_error(self.epoch_train_actual, self.epoch_train_predictions))
 
             #validation
             self.eval()
@@ -115,29 +136,53 @@ class NeuralNetwork(nn.Module):
                     batch_val_predictions.append(predictions.cpu().numpy())
                     batch_val_actual.append(targets.cpu().numpy())        
 
-                #flatten batch for input to mape function
+                #flatten batch for input to MAPE & RMSE function
                 self.epoch_val_predictions = np.concatenate(batch_val_predictions, axis=0)
                 self.epoch_val_actual = np.concatenate(batch_val_actual, axis=0) 
 
-                # Calculate MAPE on the validation data
-                val_mape = mean_absolute_percentage_error(self.epoch_val_actual, self.epoch_val_predictions)
+                # Calculate MAPE&RMSE on the validation data
+                self.epoch_val_mape.append(mean_absolute_percentage_error(self.epoch_val_actual, self.epoch_val_predictions))
+                self.epoch_val_rmse.append(root_mean_squared_error(self.epoch_val_actual, self.epoch_val_predictions))
 
                 #epoch validation loss
                 val_loss = sum(batch_val_loss) / len(batch_val_loss)
                 self.epoch_val_loss.append(val_loss)
-
             #print(f"Epoch: {epoch+1} train loss: {self.epoch_train_loss[epoch]:.4f} val loss: {self.epoch_val_loss[epoch]:.4f} val MAPE: {val_mape:.4f}")
   
     #graph training and validation loss
     def graph(self):
         plt.figure(figsize=(12, 6))
-        plt.title("Loss")
+        epochs = range(1, self.num_epochs+1)
+
+        #plotting loss
+        plt.subplot(3,1,1)
+
+        plt.title("Neural Network Loss")
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
-        epochs = range(1, self.num_epochs+1)
         plt.plot(epochs, self.epoch_train_loss, label="Training Loss")
         plt.plot(epochs, self.epoch_val_loss, label="Validation Loss")
         plt.legend()
+        
+        #plotting mape
+        plt.subplot(3,1,2)
+        plt.title("Neural Network MAPE")
+        plt.xlabel("Epoch")
+        plt.ylabel("Mean Absolute Percent Error")
+        plt.plot(epochs, self.epoch_train_mape, label="Training MAPE")
+        plt.plot(epochs, self.epoch_val_mape, label="Validation MAPE")
+        plt.legend()
+        
+        #plotting rmse
+        plt.subplot(3,1,3)
+        plt.title("Neural Network RMSE")
+        plt.xlabel("Epoch")
+        plt.ylabel("Root Mean Squared Error")
+        plt.plot(epochs, self.epoch_train_rmse, label="Training RMSE")
+        plt.plot(epochs, self.epoch_val_rmse, label="Validation RMSE")
+        plt.legend()
+
+        plt.tight_layout()
         plt.show()
 
     #generic prediction function for evaluation
@@ -161,6 +206,7 @@ class NeuralNetwork(nn.Module):
     def predict_ahead(self, days):
         self.eval()
         predictions = []
+        predictions_string = []
 
         with torch.no_grad():
             self.most_recent_day = self.targets.tail(1).values
@@ -171,10 +217,16 @@ class NeuralNetwork(nn.Module):
                 prediction = self(self.most_recent_day)
                 predictions.append(prediction.cpu().numpy().flatten())
 
+                predicted_values = predictions[0]  
+                predictions_string.append(f"{i + 1} Day Prediction: Open = {predicted_values[0]}, High = {predicted_values[1]}, Low = {predicted_values[2]}, Close = {predicted_values[3]}")
+
                 #update input for the next day.
                 self.most_recent_day = prediction
 
-        return predictions
+        #return predictions
+    
+        output = "\n".join(predictions_string)
+        return output
     
 
     def print_results(self, days):
@@ -184,3 +236,30 @@ class NeuralNetwork(nn.Module):
             print("Predicted Prices (Open  High  Low  Close):", 
             daily_prices[i][0], " | ", daily_prices[i][1], " | ", 
             daily_prices[i][2], " | ", daily_prices[i][3])
+
+
+    def get_split_MAPE(self):
+        prediction = self.predict(self.train_loader)
+        train_acc = mean_absolute_percentage_error(self.y_train, prediction)
+
+        prediction = self.predict(self.val_loader)
+        val_acc = mean_absolute_percentage_error(self.y_val, prediction)
+
+        prediction = self.predict(self.test_loader)
+        test_acc = mean_absolute_percentage_error(self.y_test, prediction)
+
+        values = [train_acc, val_acc, test_acc]
+        return values
+    
+    def get_split_RMSE(self):
+        prediction = self.predict(self.train_loader)
+        train_acc = root_mean_squared_error(self.y_train, prediction)
+
+        prediction = self.predict(self.val_loader)
+        val_acc = root_mean_squared_error(self.y_val, prediction)
+
+        prediction = self.predict(self.test_loader)
+        test_acc = root_mean_squared_error(self.y_test, prediction)
+
+        values = [train_acc, val_acc, test_acc]
+        return values
