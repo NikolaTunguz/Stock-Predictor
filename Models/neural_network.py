@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 #data imports
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_percentage_error
+from sklearn.metrics import mean_absolute_percentage_error, root_mean_squared_error
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -23,17 +23,16 @@ class NeuralNetwork(nn.Module):
         self.targets = targets
 
         #define model
-        hidden_size1 = 256
-        hidden_size2 = 128
+        hidden_size1 = 512
+        hidden_size2 = 256
         self.fc1 = nn.Linear(input_dim, hidden_size1)
         self.activation1 = nn.ReLU()
 
         self.fc2 = nn.Linear(hidden_size1, hidden_size2)
         self.activation2 = nn.ReLU()
-        self.drop = nn.Dropout(0.5)
 
         self.fc3 = nn.Linear(hidden_size2, output_dim)
-
+        
     
     def forward(self, x):
         #forward pass through model
@@ -42,35 +41,42 @@ class NeuralNetwork(nn.Module):
 
         output = self.fc2(output)
         output = self.activation2(output)
-        output = self.drop(output)
-
+        
         output = self.fc3(output)
+        
         return output
         
+
     def prepare_data(self):
         #split dataset
         #not shuffled so that the data maintains chronological order
-        x_train, x_val, y_train, y_val = train_test_split(self.features.values, self.targets.values, test_size=0.2, random_state=42, shuffle=False) 
+        self.x_train, x_temp, self.y_train, y_temp = train_test_split(self.features.values, self.targets.values, test_size=0.2, shuffle=False) 
+        self.x_val, self.x_test, self.y_val, self.y_test = train_test_split(x_temp, y_temp, test_size=0.5, shuffle=False)
 
         #convert to tensors
-        x_train = torch.tensor(x_train, dtype=torch.float32)
-        y_train = torch.tensor(y_train, dtype=torch.float32)
-        x_val = torch.tensor(x_val, dtype=torch.float32)
-        y_val = torch.tensor(y_val, dtype=torch.float32)
+        self.x_train = torch.tensor(self.x_train, dtype=torch.float32)
+        self.y_train = torch.tensor(self.y_train, dtype=torch.float32)
+        self.x_val = torch.tensor(self.x_val, dtype=torch.float32)
+        self.y_val = torch.tensor(self.y_val, dtype=torch.float32)
+        self.x_test = torch.tensor(self.x_test, dtype=torch.float32)
+        self.y_test = torch.tensor(self.y_test, dtype=torch.float32)
 
         #place datasets in dataloader
-        train_dataset = TensorDataset(x_train, y_train)
-        val_dataset = TensorDataset(x_val, y_val)
+        train_dataset = TensorDataset(self.x_train, self.y_train)
+        val_dataset = TensorDataset(self.x_val, self.y_val)
+        test_dataset = TensorDataset(self.x_test, self.y_test)
         batch_size = 64
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
         self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+        self.test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+
 
     def train_model(self):
         self.prepare_data()
         #hyperparameters
         criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
-        num_epochs = 15
+        num_epochs = 20
 
         self.num_epochs = num_epochs
         for epoch in range(num_epochs):
@@ -134,20 +140,47 @@ class NeuralNetwork(nn.Module):
         plt.legend()
         plt.show()
 
-    #next day prediction
-    def predict(self):
+    #generic prediction function for evaluation
+    def predict(self, data):
+        batch_predictions = []
+        with torch.no_grad():
+            for(features,targets) in data:
+                features,targets = features.to(self.device), targets.to(self.device)
+                prediction = self(features)
+                batch_predictions.append(prediction.cpu().numpy())
+        
+        return np.concatenate(batch_predictions, axis=0)
+
+    def evaluate(self):
+        prediction = self.predict(self.test_loader)
+        percent_error = mean_absolute_percentage_error(self.y_test, prediction)
+        root_mean_error = root_mean_squared_error(self.y_test, prediction)
+        return percent_error, root_mean_error
+
+    #next n days prediction
+    def predict_ahead(self, days):
         self.eval()
+        predictions = []
+
         with torch.no_grad():
             self.most_recent_day = self.targets.tail(1).values
-            self.most_recent_day = torch.tensor(self.most_recent_day, dtype=torch.float32)
-            self.most_recent_day = self.most_recent_day.to(self.device)
+            self.most_recent_day = torch.tensor(self.most_recent_day, dtype=torch.float32).to(self.device)
 
             #forward pass on the most recent day
-            prediction = self(self.most_recent_day)
-            return prediction.cpu().numpy().flatten()
-        
-    def print_results(self):
-        tomorrow_prices = self.predict()
-        print("Tommorow's Predicted Prices (Open  High  Low  Close):", 
-          tomorrow_prices[0], " | ", tomorrow_prices[1], " | ", 
-          tomorrow_prices[2], " | ", tomorrow_prices[3])
+            for i in range(days):
+                prediction = self(self.most_recent_day)
+                predictions.append(prediction.cpu().numpy().flatten())
+
+                #update input for the next day.
+                self.most_recent_day = prediction
+
+        return predictions
+    
+
+    def print_results(self, days):
+        daily_prices = self.predict_ahead(days)
+
+        for i in range(len(daily_prices)):
+            print("Predicted Prices (Open  High  Low  Close):", 
+            daily_prices[i][0], " | ", daily_prices[i][1], " | ", 
+            daily_prices[i][2], " | ", daily_prices[i][3])
